@@ -14,6 +14,9 @@ This repository contains the ongoing work to bring mainline Linux kernel support
 | **USB Ctrl**| WIP | Controller registered but pending sync_state. |
 | **Display**| Unsupported | Bringup performed with screen/battery disconnected. |
 
+
+![Fastfetch Kiev Mainline](./img/image.jpg)
+
 ## Important: Barebone Bringup
 Most of the current development has been performed in **"Barebone Mode"**:
 - Screen disconnected.
