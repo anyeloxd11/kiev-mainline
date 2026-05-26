@@ -1,0 +1,227 @@
+/dts-v1/;
+
+/ {
+
+	model = "Kiev";
+	compatible = "qcom,lagoon-kiev", "qcom,lagoon-moto", "qcom,lagoon";
+	qcom,msm-id = <0x1b2 0x10000 0x1cb 0x10000>;
+	qcom,board-id = <0x41 0xa100>;
+
+	fragment@10 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+
+			key_vol_up {
+
+				key_vol_up_default {
+					pins = "gpio2";
+					function = "normal";
+					input-enable;
+					bias-pull-up;
+					power-source = <0x00>;
+					phandle = <0x39>;
+				};
+			};
+		};
+	};
+
+	fragment@21 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+			compatible = "mmi,utags";
+			mmi,main-utags = "/dev/block/bootdevice/by-name/utags";
+			mmi,backup-utags = "/dev/block/bootdevice/by-name/utagsBackup";
+		};
+	};
+
+	fragment@22 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+			compatible = "mmi,utags";
+			mmi,dir-name = "hw";
+			mmi,main-utags = "/dev/block/bootdevice/by-name/hw";
+		};
+	};
+
+	fragment@23 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+
+			ramoops_mem {
+				compatible = "ramoops";
+				no-map;
+				reg = <0x00 0xaf000000 0x00 0xbf800>;
+				console-size = <0x40000>;
+				pmsg-size = <0x40000>;
+				record-size = <0x3f800>;
+				no-dump-oops;
+			};
+
+			wdog_cpuctx_region {
+				no-map;
+				reg = <0x00 0xaefce000 0x00 0x32000>;
+				phandle = <0x42>;
+			};
+
+			tzlog_dump_mem_region {
+				no-map;
+				reg = <0x00 0xaef9e000 0x00 0x30000>;
+				phandle = <0x43>;
+			};
+
+			mmi_annotate_mem_region {
+				no-map;
+				reg = <0x00 0xaef9d800 0x00 0x800>;
+				phandle = <0x44>;
+			};
+		};
+	};
+
+	fragment@24 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+
+			wdog_cputctx {
+				compatible = "mmi,watchdog_cpu_ctx";
+				memory-region = <0x42>;
+			};
+
+			tzlog_dump {
+				compatible = "mmi,tzlog-dump";
+				memory-region = <0x43>;
+			};
+
+			mmi_annotate {
+				compatible = "mmi,annotate";
+				memory-region = <0x44>;
+				mem-size = <0x20000>;
+			};
+
+			qcom,wdt@17c10000 {
+				qcom,bark-time = <0x55f0>;
+				phandle = <0xdd>;
+			};
+		};
+	};
+
+	fragment@39 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+
+			disp_pins {
+
+				disp_pins_default {
+					pins = "gpio9";
+					function = "func1";
+					qcom,drive-strength = <0x02>;
+					power-source = <0x01>;
+					bias-disable;
+					output-low;
+					phandle = <0x45>;
+				};
+			};
+		};
+	};
+
+	fragment@67 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+
+	fragment@72 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+
+			sys_temp_support {
+				compatible = "mmi,sys-temp";
+				mmi,temperature-names = "front_temp", "back_temp";
+				status = "ok";
+			};
+		};
+	};
+
+	fragment@85 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+			status = "ok";
+			qcom,battery-data = <0x3a>;
+			qcom,qg-iterm-ma = <0x190>;
+			qcom,vbatt-cutoff-mv = <0xc80>;
+			qcom,vbatt-empty-mv = <0xbb8>;
+			qcom,vbatt-empty-cold-mv = <0xbb8>;
+		};
+	};
+
+	fragment@86 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+
+			qcom,tz_gpio {
+				compatible = "qcom,tz_gpio";
+				tlmm-tz = <0x0d 0x0e 0x0f 0x10 0x2d 0x2e 0x38 0x39>;
+			};
+		};
+	};
+
+	__symbols__ {
+		key_vol_up_default = "/fragment@10/__overlay__/key_vol_up/key_vol_up_default";
+		wdog_cpuctx_mem = "/fragment@23/__overlay__/wdog_cpuctx_region";
+		tzlog_dump_mem = "/fragment@23/__overlay__/tzlog_dump_mem_region";
+		mmi_annotate_mem = "/fragment@23/__overlay__/mmi_annotate_mem_region";
+		wdog = "/fragment@24/__overlay__/qcom,wdt@17c10000";
+		disp_pins_default = "/fragment@39/__overlay__/disp_pins/disp_pins_default";
+	};
+
+	__fixups__ {
+		soc = "/fragment@24:target:0", "/fragment@72:target:0", "/fragment@86:target:0";
+		pm6350_gpios = "/fragment@10:target:0";
+		pm7250b_qg =  "/fragment@85:target:0";
+		utags = "/fragment@21:target:0";
+		hw = "/fragment@22:target:0";
+		reserved_memory = "/fragment@23:target:0";
+		pm6150l_gpios = "/fragment@39:target:0";
+		qupv3_se0_i2c = "/fragment@67:target:0";
+	};
+
+	__local_fixups__ {
+
+		fragment@24 {
+
+			__overlay__ {
+
+				wdog_cputctx {
+					memory-region = <0x00>;
+				};
+
+				tzlog_dump {
+					memory-region = <0x00>;
+				};
+
+				mmi_annotate {
+					memory-region = <0x00>;
+				};
+			};
+		};
+
+		fragment@85 {
+
+			__overlay__ {
+				qcom,battery-data = <0x00>;
+			};
+		};
+
+	};
+};

@@ -1,0 +1,422 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Device Tree for Motorola Kiev (Moto G 5G)
+ * Based on Qualcomm SM7225 (Lagoon)
+ *
+ * Author: anyeloxd13 <anyeloxd13@gmail.com>
+ *
+ * Mainline Bringup Status:
+ * - UART (ttyMSM0): OK
+ * - UFS Storage: OK
+ * - RPMh Regulators: OK
+ * - USB / WLAN: BLOCKED (Hardware Quirks / Firmware Signing)
+ */
+#define PM6350_SID1  1
+#define PM7250B_SID  2
+#define PM7250B_SID1 3
+
+
+/dts-v1/;
+
+#include "sm6350.dtsi"
+#include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include <dt-bindings/phy/phy-qcom-qmp.h>
+#include "pm6350.dtsi"
+#include "pm6150l.dtsi"
+#include "sm7225.dtsi"
+#include "pm7250b.dtsi"
+
+
+/ {
+	/*
+	 * Mandatory Model string for ABL (Android Bootloader) compatibility.
+	 * The bootloader will reject the DTB if this does not match its internal whitelist.
+	 */
+	model = "Qualcomm Technologies, Inc. Lagoon"; 
+	compatible = "motorola,kiev", "qcom,lagoon", "qcom,sm7225";
+	qcom,msm-id = <0x1b2 0x10000 0x1cb 0x10000>;
+	qcom,board-id = <0x0 0x0>;
+	interrupt-parent = <&intc>;
+
+    chosen {
+        stdout-path = "serial0:115200n8";
+        bootargs = "console=ttyMSM0,115200n8 earlycon=qcom_geni,0x98c000 deferred_probe_timeout=30 rootwait ro init=/init swiotlb=noforce cpuidle.off=1";
+    };
+
+    usb_nop_phy: usb-nop-phy {
+        compatible = "usb-nop-xceiv";
+        #phy-cells = <0>;
+    };
+
+    /* System timer configuration */
+    timer {
+        compatible = "arm,armv8-timer";
+        clock-frequency = <19200000>;
+        interrupts = <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+                     <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+                     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+                     <GIC_PPI 0 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
+        always-on;
+    };
+
+    aliases {
+        serial0 = &uart9;
+	};
+
+    /* 
+     * Dummy nodes to satisfy ABL (Android Bootloader) expectations.
+     * Prevents bootloader hangs or errors due to missing stock nodes.
+     */
+    utags: utags { status = "disabled"; };
+    hw: hw { status = "disabled"; };
+    pm7250b_qg: pm7250b-qg-dummy { status = "disabled"; };
+    pm8008_8: pm8008-8-dummy { status = "disabled"; };
+    pm8008_9: pm8008-9-dummy { status = "disabled"; };
+    qupv3_se0_i2c: i2c0-dummy {status = "disabled"; };
+
+};
+
+/* UART9: Main debug console */
+&uart9 {
+    status = "okay";
+    /delete-property/ pinctrl-names;
+    /delete-property/ pinctrl-0;
+};
+
+&qupv3_id_1 {
+    status = "okay";
+};
+
+&soc {
+    /* Keep the node empty as DMA will now be managed by SMMU and Interconnects */
+};
+
+&spmi_bus {
+    status = "okay";
+};
+
+/* 
+ * TLMM: Pin controller configuration 
+ * ufs_reset is critical for storage initialization.
+ */
+ &tlmm {
+    status = "okay";
+    gpio-reserved-ranges = <0 157>;
+    /delete-property/ irqdomain-map;
+    /delete-property/ irqdomain-map-mask;
+    /delete-property/ irqdomain-map-pass-thru;
+    /delete-property/ wakeup-parent;
+    /delete-property/ gpio-ranges;
+
+    ufs_dev_reset_assert: ufs-dev-reset-assert-state {
+        pins = "ufs_reset";
+        bias-pull-down;
+        drive-strength = <8>;
+        output-low;
+    };
+
+    ufs_dev_reset_deassert: ufs-dev-reset-deassert-state {
+        pins = "ufs_reset";
+        bias-pull-down;
+        drive-strength = <8>;
+        output-high;
+    };
+};
+
+/* 
+ * UFS (Universal Flash Storage) 
+ * Functional status: OK. 
+ */
+ufshc_mem: &ufs_mem_hc {
+    status = "okay";
+    pinctrl-names = "dev-reset-assert", "dev-reset-deassert";
+    pinctrl-0 = <&ufs_dev_reset_assert>;
+    pinctrl-1 = <&ufs_dev_reset_deassert>;
+    vcc-supply = <&L7E>;
+    vccq-supply = <&L12A>;
+    vccq2-supply = <&L12A>;
+    vcc-max-microamp = <800000>;
+    vccq-max-microamp = <800000>;
+    vccq2-max-microamp = <800000>;
+
+    power-domains = <&gcc UFS_PHY_GDSC>;
+    clock-names = "core_clk",
+                  "bus_aggr_clk",
+                  "iface_clk",
+                  "core_clk_unipro",
+                  "ref_clk",
+                  "tx_lane0_sync_clk",
+                  "rx_lane0_sync_clk",
+                  "rx_lane1_sync_clk",
+                  "ice_core_clk";
+    clocks = <&gcc GCC_UFS_PHY_AXI_CLK>,
+             <&gcc GCC_AGGRE_UFS_PHY_AXI_CLK>,
+             <&gcc GCC_UFS_PHY_AHB_CLK>,
+             <&gcc GCC_UFS_PHY_UNIPRO_CORE_CLK>,
+             <&rpmhcc RPMH_QLINK_CLK>,
+             <&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>,
+             <&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK>,
+             <&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>,
+             <&gcc GCC_UFS_PHY_ICE_CORE_CLK>;
+    lanes-per-direction = <2>;
+};
+
+&ufs_mem_phy {
+    status = "okay";
+    vdda-phy-supply = <&pm6350_l18a>;
+    vdda-pll-supply = <&L22A>;
+    vdda-phy-max-microamp = <62900>;
+    vdda-pll-max-microamp = <18300>;
+    resets = <&ufs_mem_hc 0>;
+    reset-names = "ufsphy";
+    clocks = <&rpmhcc RPMH_QLINK_CLK>,
+             <&gcc GCC_UFS_PHY_PHY_AUX_CLK>,
+             <&gcc GCC_UFS_MEM_CLKREF_CLK>;
+    clock-names = "ref", "ref_aux", "qref";
+};
+
+/* 
+ * RPMH Regulators 
+ * Defines the power rails managed by the RPMh hardware accelerator.
+ */
+&apps_rsc {
+    /* Main PMIC: PM6350 (Bus ID 'a') */
+    pm6350_rpmh_regulators: pm6350-rpmh-regulators {
+        compatible = "qcom,pm6350-rpmh-regulators";
+        qcom,pmic-id = "a";
+
+        pm6350_l6a: pm6350_l6: ldo6 {
+            regulator-min-microvolt = <1710000>;
+            regulator-max-microvolt = <3544000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+
+        pm6350_l2a: pm6350_l2: ldo2 {
+            regulator-min-microvolt = <1503000>;
+            regulator-max-microvolt = <1980000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+
+        pm6350_l3a: pm6350_l3: ldo3 {
+            regulator-min-microvolt = <2700000>;
+            regulator-max-microvolt = <3300000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+
+        pm6350_l4a: pm6350_l4: ldo4 {
+            regulator-min-microvolt = <352000>;
+            regulator-max-microvolt = <801000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+
+        pm6350_l8a: pm6350_l8: ldo8 {
+            regulator-min-microvolt = <2500000>;
+            regulator-max-microvolt = <3544000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+            regulator-always-on;
+        };
+
+        L7A: pm6350_l7: ldo7 {
+            regulator-min-microvolt = <1620000>;
+            regulator-max-microvolt = <1980000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+
+        L11A: pm6350_l11: ldo11 {
+            regulator-min-microvolt = <1800000>;
+            regulator-max-microvolt = <2000000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+            regulator-always-on;
+        };
+
+        L12A: pm6350_l12: ldo12 {
+            regulator-min-microvolt = <1620000>;
+            regulator-max-microvolt = <1980000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+            regulator-always-on;
+        };
+
+        L14A: pm6350_l14: ldo14 {
+            regulator-min-microvolt = <1700000>;
+            regulator-max-microvolt = <1900000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+
+        L15A: pm6350_l15: ldo15 {
+            regulator-min-microvolt = <1100000>;
+            regulator-max-microvolt = <1305000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+
+        L16A: pm6350_l16: ldo16 {
+            regulator-min-microvolt = <830000>;
+            regulator-max-microvolt = <921000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+
+        pm6350_l18a: pm6350_l18: ldo18 {
+            regulator-min-microvolt = <912000>;
+            regulator-max-microvolt = <1049000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+            regulator-always-on;
+        };
+
+        L22A: pm6350_l22: ldo22 {
+            regulator-min-microvolt = <1200000>;
+            regulator-max-microvolt = <1305000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+            regulator-always-on;
+        };
+    };
+
+    /* Secondary PMIC: PM6150L (Bus ID 'e') */
+    pm6150l-rpmh-regulators {
+        compatible = "qcom,pm6150l-rpmh-regulators";
+        qcom,pmic-id = "e";
+
+        L2E: pm6150l_l2: ldo2 {
+            regulator-min-microvolt = <1170000>;
+            regulator-max-microvolt = <1305000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+
+        L7E: pm6150l_l7: ldo7 {
+            regulator-min-microvolt = <2720000>;
+            regulator-max-microvolt = <3544000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+            regulator-always-on;
+        };
+
+        L10E: pm6150l_l10: ldo10 {
+            regulator-min-microvolt = <3000000>;
+            regulator-max-microvolt = <3401000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+
+        L11E: pm6150l_l11: ldo11 {
+            regulator-min-microvolt = <3000000>;
+            regulator-max-microvolt = <3401000>;
+            regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+        };
+    };
+};
+
+/*
+ * SMMU (System MMU)
+ */
+&apps_smmu { status = "okay"; };
+
+/*
+ * Reserved Memory Regions
+ * Memory areas carved out for specific hardware subsystems.
+ */
+&reserved_memory {
+		gpu_region@8b715400 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0x0 0x8b715400 0x0 0x2000>;
+		};
+
+		secure_display_region {
+			compatible = "shared-dma-pool";
+			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
+			reusable;
+			alignment = <0x0 0x400000>;
+			size = <0x0 0x8c00000>;
+		};
+
+
+		rmtfs_mem: memory@efe01000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0x0 0xefe01000 0x0 0x600000>;
+			no-map;
+			qcom,client-id = <1>;
+			qcom,vmid = <15>;
+		};
+};
+
+/* 
+ * CPU Idle States 
+ * Note: These are currently disabled via 'cpuidle.off=1' in bootargs 
+ * to prevent system hangs during early boot (PSCI issues).
+ */
+&cpu0 { cpu-idle-states = <&little_cpu_sleep_0>; };
+&cpu1 { cpu-idle-states = <&little_cpu_sleep_0>; };
+&cpu2 { cpu-idle-states = <&little_cpu_sleep_0>; };
+&cpu3 { cpu-idle-states = <&little_cpu_sleep_0>; };
+&cpu4 { cpu-idle-states = <&little_cpu_sleep_0>; };
+&cpu5 { cpu-idle-states = <&little_cpu_sleep_0>; };
+&cpu6 { cpu-idle-states = <&big_cpu_sleep_0>; };
+&cpu7 { cpu-idle-states = <&big_cpu_sleep_0>; };
+
+&wifi {
+    status = "disabled";
+    memory-region = <&wlan_fw_mem>;
+    qcom,msa-fixed-perm;
+    vdd-0.8-cx-mx-supply = <&pm6350_l4a>;
+    vdd-1.8-xo-supply = <&L7A>;
+    vdd-1.3-rfa-supply = <&L2E>;
+    vdd-3.3-ch0-supply = <&L10E>;
+    vdd-3.3-ch1-supply = <&L11E>;
+};
+
+&mpss {
+    status = "okay";
+    firmware-name = "qcom/sm7225/modem.mdt";
+};
+
+&gmu {
+    status = "disabled";
+};
+
+&gcc {
+    clocks = <&rpmhcc RPMH_CXO_CLK>,
+             <&rpmhcc RPMH_CXO_CLK_A>,
+             <&sleep_clk>;
+};
+
+&rng { status = "disabled"; };
+&crypto { status = "disabled"; };
+&adreno_smmu { status = "disabled"; };
+&gpucc { status = "disabled"; };
+&videocc { status = "disabled"; };
+&dispcc { status = "disabled"; };
+
+/* Disable BWMON PMUs to unblock sync_state */
+&{/soc@0/pmu@90b6300} { status = "disabled"; };
+&{/soc@0/pmu@90cd000} { status = "disabled"; };
+
+/* USB High-Speed PHY */
+&usb_1_hsphy {
+    compatible = "qcom,sm7225-qusb2-phy", "qcom,qusb2-v2-phy";
+    status = "okay";
+    vdd-supply = <&pm6350_l18a>;
+    vdda-pll-supply = <&pm6350_l2a>;
+    vdda-phy-dpdm-supply = <&pm6350_l3a>;
+};
+
+/* Primary USB Controller */
+&usb_1 {
+    status = "okay";
+    dr_mode = "peripheral";
+};
+
+/* DWC3 Configuration 
+ * 
+ * Author's Note (anyeloxd13): 
+ * USB currently suffers from timeouts (failed to enable ep0out) because 
+ * the SM7225 hardware is unable to start its PLL with generic qcom,qusb2-v2-phy 
+ * values. It requires manual injection of calibration registers in the C code 
+ * (phy-qcom-qusb2.c) and forced power-on of LDO2/LDO3 using regulator_set_voltage() 
+ * to avoid RPMh error -131.
+ */
+&usb_1_dwc3 {
+    maximum-speed = "high-speed";
+    dr_mode = "peripheral";
+    /delete-property/ usb-role-switch;
+    snps,dis_u3_susphy_quirk;
+    snps,dis-u2-freeclk-exists-quirk;
+    /* Override phys to only include High-Speed PHY (No QMP/SuperSpeed on Kiev) */
+    phys = <&usb_1_hsphy>;
+    phy-names = "usb2-phy";
+};
