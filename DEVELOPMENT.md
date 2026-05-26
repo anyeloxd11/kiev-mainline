@@ -56,11 +56,13 @@ We use a **"Purged DTBO"** (~3KB) that only contains the bare minimum required b
 The source for this DTBO is located at `dtbo/overlay.dts`.
 
 ## Commands for DTBO Creation
-
+```bash
 dtc -@ -I dts -O dtb -o overlay.dtbo overlay.dts
+```
 
+```bash
 ./libufdt/utils/src/mkdtboimg.py create dtbo.img overlay.dtbo
-
+```
 ## UART Debugging
 
 - **Voltage**: 1.8V
